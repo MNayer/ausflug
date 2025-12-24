@@ -1,0 +1,29 @@
+<!-- Season Selection -->
+<section class="space-y-4">
+  <h2 class="text-xl font-semibold">Season</h2>
+  <div class="grid grid-cols-4 gap-4">
+    {% for season in seasons %}
+      <label class="cursor-pointer">
+        <input
+          type="checkbox"
+          name="seasons"
+          value="{{ season.name }}"
+          class="hidden peer"
+        />
+        <div
+          class="border border-gray-300 rounded-lg p-3 flex flex-col items-center gap-2
+                 transition hover:border-gray-900
+                 peer-checked:border-blue-500 peer-checked:bg-blue-100"
+        >
+          <img
+            src="{{ url_for('static', filename=season.image) }}"
+            alt="{{ season.name }}"
+            class="w-20 h-20 object-contain"
+          />
+          <span class="text-sm font-medium">{{ season.name }}</span>
+        </div>
+      </label>
+    {% endfor %}
+  </div>
+</section>
+

@@ -1,0 +1,25 @@
+<!-- Duration -->
+<section class="space-y-4">
+  <h2 class="text-xl font-semibold">Duration</h2>
+
+  <form>
+    <div class="grid grid-cols-3 gap-4">
+      {% for duration in durations %}
+        <label class="duration-item cursor-pointer">
+          <input
+            type="radio"
+            name="duration"
+            value="{{ duration }}"
+            class="hidden peer"
+          />
+          <div
+            class="aspect-square border border-gray-300 rounded-lg flex items-center justify-center 
+                   transition peer-checked:border-blue-500 peer-checked:bg-blue-100 hover:border-gray-900"
+          >
+            {{ duration }}
+          </div>
+        </label>
+      {% endfor %}
+    </div>
+  </form>
+</section>

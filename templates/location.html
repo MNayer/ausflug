@@ -1,0 +1,65 @@
+<!-- Location -->
+<section class="space-y-4">
+  {% if location_images|length > 0 %}
+  <div id="default-carousel" class="relative w-full" data-carousel="slide">
+
+    <!-- Carousel wrapper -->
+    <div class="relative h-56 overflow-hidden rounded-lg md:h-96">
+        {% for map in location_images %}
+        <div class="hidden duration-700 ease-in-out {% if loop.first %}block{% endif %}" data-carousel-item>
+            <iframe
+                src="{{ url_for('static', filename=map.src) }}"
+                class="absolute block w-full h-full rounded-lg -translate-x-1/2 -translate-y-1/2 top-1/2 left-1/2"
+                frameborder="0"
+                scrolling="no"
+                title="{{ map.alt }}">
+            </iframe>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if location_images|length > 1 %}
+    <!-- Slider indicators -->
+    <div class="absolute z-30 flex -translate-x-1/2 bottom-5 left-1/2 space-x-3">
+      {% for _ in location_images %}
+      <button
+        type="button"
+        class="w-3 h-3 rounded-full {% if loop.first %}bg-white{% else %}bg-white/50{% endif %}"
+        aria-current="{% if loop.first %}true{% else %}false{% endif %}"
+        aria-label="Slide {{ loop.index }}"
+        data-carousel-slide-to="{{ loop.index0 }}"
+      ></button>
+      {% endfor %}
+    </div>
+
+    <!-- Slider controls -->
+    <button
+      type="button"
+      class="absolute top-0 left-0 z-30 flex items-center justify-center h-full px-4 cursor-pointer group"
+      data-carousel-prev
+    >
+      <span class="inline-flex items-center justify-center w-10 h-10 rounded bg-white/80 border">
+        <svg class="w-5 h-5 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+        </svg>
+        <span class="sr-only">Previous</span>
+      </span>
+    </button>
+
+    <button
+      type="button"
+      class="absolute top-0 right-0 z-30 flex items-center justify-center h-full px-4 cursor-pointer group"
+      data-carousel-next
+    >
+      <span class="inline-flex items-center justify-center w-10 h-10 rounded bg-white/80 border">
+        <svg class="w-5 h-5 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+        <span class="sr-only">Next</span>
+      </span>
+    </button>
+    {% endif %}
+
+  </div>
+  {% endif %}
+</section>
