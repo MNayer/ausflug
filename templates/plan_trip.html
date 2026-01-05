@@ -4,18 +4,24 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{{ trip.name }}</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Aboreto&family=Didact+Gothic&display=swap" rel="stylesheet">
     <!-- Flowbite & Tailwind -->
     <link href="https://cdn.jsdelivr.net/npm/flowbite@4.0.1/dist/flowbite.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/leoanangmh/flexidatepicker@1.1.5/dist/flexidatepicker.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style type="text/tailwindcss">
+      @theme {
+        --font-sans: "Didact Gothic", sans-serif;
+        --font-serif: "Aboreto", serif;
+        --color-action: #fb9d18;
+      }
+    </style>
   </head>
-  <body class="min-h-screen bg-white text-gray-900">
-    <main class="max-w-3xl mx-auto px-6 py-12 space-y-8">
-      <h1 class="text-3xl font-bold">{{ trip.name }}</h1>
-      {% if trip.creator %}
-      <p class="text-gray-600 mb-4">{{ trip.creator }} invite(s) you to plan a trip.</p>
-      {% endif %}
-
+  <body class="min-h-screen bg-neutral-50 text-gray-900">
+    <main class="max-w-3xl mx-auto px-6 py-12 space-y-4">
       {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
           <div class="space-y-2">
@@ -28,27 +34,179 @@
         {% endif %}
       {% endwith %}
 
-      <!-- Share link -->
-      <section class="space-y-2">
-        <h2 class="text-xl font-semibold">Share this trip</h2>
-        <div class="flex items-center gap-2">
-          <input id="share-link" type="text" value="{{ share_url }}" readonly
-                 class="flex-grow p-2 border border-gray-300 rounded" />
-          <button type="button" onclick="copyLink()"
-                  class="px-3 py-2 text-white bg-blue-600 rounded hover:bg-blue-700">Copy Link</button>
-        </div>
-      </section>
+      <!-- Response summary with improved visualisation -->
+      {% if trip.responses %}
+      <section class="space-y-4">
+        <details class="group rounded-md bg-neutral-50">
+          <summary class="cursor-pointer select-none list-none flex flex-col gap-2">
+            <!-- Row 1: title + chevron -->
+            <div class="flex items-center justify-between">
+              <h1 class="text-3xl font-serif font-bold">
+                {{ trip.name }}
+              </h1>
 
-      <form method="post" class="space-y-8">
+              <!-- chevron -->
+              <div class="aspect-square bg-neutral-100 p-2 rounded-full shadow-md hover:shadow-lg">
+                <svg
+                  class="h-4 w-4 transition-transform duration-200 group-open:rotate-180"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+              </div>
+            </div>
+
+            <!-- Row 2: creator info -->
+            {% if trip.creator %}
+              <p class="text-gray-600">
+                {{ trip.creator }} invite(s) you to plan a trip.
+              </p>
+            {% endif %}
+          </summary>
+
+          <!-- content -->
+          <div class="pt-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
+              <!-- Destinations -->
+              <div class="rounded-md bg-neutral-100 shadow-md p-4">
+                <h3 class="font-medium mb-2">Destinations</h3>
+                {% for code, count in sorted_locations %}
+                <div class="mb-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm">{{ location_details[code].name if code in location_details else code }}</span>
+                    <span class="text-xs font-semibold">{{ count }}</span>
+                  </div>
+                  <div class="w-full h-2 bg-gray-200 rounded">
+                    <div class="h-2 bg-yellow-500 rounded" style="width: {{ (count / (totals.locations or 1) * 100) | round(2) }}%"></div>
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+
+              <!-- Durations -->
+              <div class="rounded-md bg-neutral-100 shadow-md p-4">
+                <h3 class="font-medium mb-2">Durations</h3>
+                {% for dur, count in sorted_durations %}
+                <div class="mb-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm">{{ dur }}</span>
+                    <span class="text-xs font-semibold">{{ count }}</span>
+                  </div>
+                  <div class="w-full h-2 bg-gray-200 rounded">
+                    <div class="h-2 bg-yellow-500 rounded" style="width: {{ (count / (totals.durations or 1) * 100) | round(2) }}%"></div>
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+
+              <!-- Seasons -->
+              <div class="rounded-md bg-neutral-100 shadow-md p-4">
+                <h3 class="font-medium mb-2">Seasons</h3>
+                {% for season, count in sorted_seasons %}
+                <div class="mb-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm">{{ season }}</span>
+                    <span class="text-xs font-semibold">{{ count }}</span>
+                  </div>
+                  <div class="w-full h-2 bg-gray-200 rounded">
+                    <div class="h-2 bg-yellow-500 rounded" style="width: {{ (count / (totals.seasons or 1) * 100) | round(2) }}%"></div>
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+
+              <!-- Months -->
+              <div class="rounded-md bg-neutral-100 shadow-md p-4">
+                <h3 class="font-medium mb-2">Months</h3>
+                {% for month, count in sorted_months %}
+                <div class="mb-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm">{{ month }}</span>
+                    <span class="text-xs font-semibold">{{ count }}</span>
+                  </div>
+                  <div class="w-full h-2 bg-gray-200 rounded">
+                    <div class="h-2 bg-yellow-500 rounded" style="width: {{ (count / (totals.months or 1) * 100) | round(2) }}%"></div>
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+
+              <!-- Dates -->
+              <div class="rounded-md bg-neutral-100 shadow-md p-4">
+                <h3 class="font-medium mb-2">Dates</h3>
+                {% for date_item in sorted_dates_top %}
+                {% set date_str = date_item[0] %}
+                {% set count = date_item[1] %}
+                <div class="mb-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm">{{ date_str }}</span>
+                    <span class="text-xs font-semibold">{{ count }}</span>
+                  </div>
+                  <div class="w-full h-2 bg-gray-200 rounded">
+                    <div class="h-2 bg-yellow-500 rounded" style="width: {{ (count / (totals.dates or 1) * 100) | round(2) }}%"></div>
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+
+              <!-- Highlight the most popular choices -->
+              <div class="rounded-md bg-neutral-100 shadow-md p-4">
+                <h3 class="font-medium mb-2">Current Selection</h3>
+                <table class="w-full border-collapse table-fixed text-sm">
+                  <tbody>
+                    {% if sorted_locations %}
+                    <tr>
+                      <td class="font-bold">Most popular destination</td>
+                      <td>{{ location_details[sorted_locations[0][0]].name if sorted_locations[0][0] in location_details else sorted_locations[0][0] }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if sorted_durations %}
+                    <tr>
+                      <td class="font-bold">Most popular duration</td>
+                      <td>{{ sorted_durations[0][0] }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if sorted_seasons %}
+                    <tr>
+                      <td class="font-bold">Most popular season</td>
+                      <td>{{ sorted_seasons[0][0] }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if sorted_dates_top %}
+                    <tr>
+                      <td class="font-bold">Best date</td>
+                      <td>{{ sorted_dates_top[0][0] }}</td>
+                    </tr>
+                    {% endif %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </details>
+      </section>
+      <style>
+        /* Hide default disclosure triangle */
+        summary::-webkit-details-marker { display: none; }
+      </style>
+      {% endif %}
+
+      <form method="post" class="space-y-8 my-8">
         <!-- Location selection -->
         {% if allowed_locations|length > 1 %}
         <section class="space-y-4">
-          <h2 class="text-xl font-semibold">Choose Destination</h2>
+          <h2 class="text-xl font-serif font-semibold">Choose Destination</h2>
           <div class="grid grid-cols-2 md:grid-cols-2 gap-4">
             {% for loc in allowed_locations %}
             <label class="cursor-pointer block">
               <input type="radio" name="location" value="{{ loc.code }}" class="hidden peer" required>
-              <div class="border border-gray-300 rounded-lg overflow-hidden transition peer-checked:border-blue-500 peer-checked:bg-blue-50 hover:border-gray-900">
+              <div class="border border-transparent bg-neutral-100 shadow-md rounded-lg overflow-hidden transition peer-checked:shadow-lg peer-checked:border-neutral-300 hover:shadow-lg">
                 <iframe src="{{ url_for('static', filename=loc.src) }}"
                         title="{{ loc.alt }}" class="w-full h-40 md:h-48" frameborder="0" scrolling="no"></iframe>
                 <div class="p-2 text-center text-sm font-medium">{{ loc.name }}</div>
@@ -61,8 +219,8 @@
         <!-- Still show the destination as a map card, but make it non-selectable -->
         <input type="hidden" name="location" value="{{ allowed_locations[0].code }}">
         <section class="space-y-4">
-          <h2 class="text-xl font-semibold">Destination</h2>
-          <div class="border border-gray-300 rounded-lg overflow-hidden">
+          <h2 class="text-xl font-serif font-semibold">Destination</h2>
+          <div class="border border-neutral-300 bg-neutral-100 shadow-lg rounded-lg overflow-hidden">
             <iframe src="{{ url_for('static', filename=allowed_locations[0].src) }}"
                     title="{{ allowed_locations[0].alt }}" class="w-full h-56 md:h-72" frameborder="0" scrolling="no"></iframe>
             <div class="p-2 text-center text-sm font-medium">{{ allowed_locations[0].name }}</div>
@@ -73,13 +231,13 @@
         <!-- Duration selection -->
         {% if allowed_durations|length > 1 %}
         <section class="space-y-4">
-          <h2 class="text-xl font-semibold">Choose Duration</h2>
+          <h2 class="text-xl font-serif font-semibold">Choose Duration</h2>
           <div class="grid grid-cols-3 gap-4">
             {% for dur in allowed_durations %}
             <label class="duration-item cursor-pointer">
               <input type="radio" name="duration" value="{{ dur }}" class="hidden peer" required>
               <div
-                class="aspect-square border border-gray-300 rounded-lg flex items-center justify-center transition peer-checked:border-blue-500 peer-checked:bg-blue-100 hover:border-gray-900">
+                class="aspect-16/9 border border-transparent bg-neutral-100 shadow-md rounded-lg flex items-center justify-center transition peer-checked:border-neutral-300 peer-checked:bg-neutral-100 hover:shadow-lg">
                 {{ dur }}
               </div>
             </label>
@@ -90,15 +248,15 @@
         <!-- Show all durations but lock the choice that was already fixed during trip creation -->
         <input type="hidden" name="duration" value="{{ allowed_durations[0] }}">
         <section class="space-y-4">
-          <h2 class="text-xl font-semibold">Duration</h2>
+          <h2 class="text-xl font-serif font-semibold">Duration</h2>
           <p class="text-sm text-gray-500">Duration was already decided when the trip was created.</p>
           <div class="grid grid-cols-3 gap-4">
             {% for dur in all_durations %}
             <label class="duration-item block">
               <input type="radio" name="duration_locked" value="{{ dur }}" class="hidden peer" {% if dur==allowed_durations[0] %}checked{% endif %} disabled>
               <div
-                class="aspect-square border border-gray-300 rounded-lg flex items-center justify-center transition
-                       {% if dur==allowed_durations[0] %}border-blue-500 bg-blue-100{% else %}opacity-50{% endif %}">
+                class="aspect-16/9 border-transparent bg-neutral-100 shadow-md border-gray-300 rounded-lg flex items-center justify-center transition
+                       {% if dur==allowed_durations[0] %}border-neutral-300 bg-neutral-100 shadow-lg{% else %}opacity-50{% endif %}">
                 {{ dur }}
               </div>
             </label>
@@ -110,13 +268,13 @@
         <!-- Season selection -->
         {% if allowed_seasons|length > 1 %}
         <section class="space-y-4">
-          <h2 class="text-xl font-semibold">Preferred Seasons</h2>
+          <h2 class="text-xl font-serif font-semibold">Preferred Seasons</h2>
           <p class="text-sm text-gray-500">You can pick multiple seasons.  Your choice will restrict the available dates below.</p>
           <div class="grid grid-cols-4 gap-4">
             {% for season in allowed_seasons %}
             <label class="cursor-pointer">
               <input type="checkbox" name="seasons" value="{{ season.name }}" class="hidden peer">
-              <div class="border border-gray-300 rounded-lg p-3 flex flex-col items-center gap-2 transition hover:border-gray-900 peer-checked:border-blue-500 peer-checked:bg-blue-100">
+              <div class="aspect-16/9 border border-transparent shadow-md bg-neutral-100 rounded-lg p-3 flex flex-col items-center gap-2 transition hover:shadow-lg peer-checked:border-neutral-300 peer-checked:shadow-lg">
                 <img src="{{ url_for('static', filename=season.image) }}" alt="{{ season.name }}" class="w-16 h-16 object-contain" />
                 <span class="text-sm font-medium">{{ season.name }}</span>
               </div>
@@ -131,7 +289,7 @@
 
         <!-- Dates picker -->
         <section class="space-y-4">
-          <h2 class="text-xl font-semibold">Available Dates</h2>
+          <h2 class="text-xl font-serif font-semibold">Available Dates</h2>
           <p class="text-sm text-gray-500">Select one or more dates for the trip.  The date picker will disable days outside of the chosen seasons.</p>
           <div class="relative max-w-sm">
             <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
@@ -141,124 +299,20 @@
               </svg>
             </div>
             <input id="date-picker" name="dates" type="text" placeholder="Select date(s)" readonly
-                   class="block w-full ps-9 pe-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs" />
+                   class="block w-full ps-9 pe-3 py-2.5 rounded-md border border-transparent bg-neutral-100 text-heading text-sm rounded-base focus:ring-brand focus:border-neutral-300 shadow-md" />
           </div>
         </section>
 
         <!-- Participant name -->
         <section class="space-y-4">
-          <h2 class="text-xl font-semibold">Your Name (optional)</h2>
-          <input type="text" name="participant_name" placeholder="Enter your name" class="w-full p-2.5 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500" />
+          <h2 class="text-xl font-serif font-semibold">Your Name (optional)</h2>
+          <input type="text" name="participant_name" placeholder="Enter your name" class="w-full p-2.5 border bg-neutral-100 border border-transparent shadow-md rounded-md focus:border-neutral-300" />
         </section>
 
-        <button type="submit" class="w-full px-4 py-2 font-medium text-white bg-blue-600 rounded hover:bg-blue-700">
+        <button type="submit" class="w-full px-4 py-2 font-medium shadow-md text-white bg-orange-300 rounded-md hover:shadow-lg hover:cursor-pointer">
           Submit Preferences
         </button>
       </form>
-
-      <!-- Response summary with improved visualisation -->
-      {% if trip.responses %}
-      <section class="space-y-4">
-        <h2 class="text-xl font-semibold">Current Responses</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <!-- Destinations -->
-          <div>
-            <h3 class="font-medium mb-2">Destinations</h3>
-            {% for code, count in sorted_locations %}
-            <div class="mb-2">
-              <div class="flex items-center justify-between">
-                <span class="text-sm">{{ location_details[code].name if code in location_details else code }}</span>
-                <span class="text-xs font-semibold">{{ count }}</span>
-              </div>
-              <div class="w-full h-2 bg-gray-200 rounded">
-                <div class="h-2 bg-blue-500 rounded" style="width: {{ (count / (totals.locations or 1) * 100) | round(2) }}%"></div>
-              </div>
-            </div>
-            {% endfor %}
-          </div>
-          <!-- Durations -->
-          <div>
-            <h3 class="font-medium mb-2">Durations</h3>
-            {% for dur, count in sorted_durations %}
-            <div class="mb-2">
-              <div class="flex items-center justify-between">
-                <span class="text-sm">{{ dur }}</span>
-                <span class="text-xs font-semibold">{{ count }}</span>
-              </div>
-              <div class="w-full h-2 bg-gray-200 rounded">
-                <div class="h-2 bg-green-500 rounded" style="width: {{ (count / (totals.durations or 1) * 100) | round(2) }}%"></div>
-              </div>
-            </div>
-            {% endfor %}
-          </div>
-          <!-- Seasons -->
-          <div>
-            <h3 class="font-medium mb-2">Seasons</h3>
-            {% for season, count in sorted_seasons %}
-            <div class="mb-2">
-              <div class="flex items-center justify-between">
-                <span class="text-sm">{{ season }}</span>
-                <span class="text-xs font-semibold">{{ count }}</span>
-              </div>
-              <div class="w-full h-2 bg-gray-200 rounded">
-                <div class="h-2 bg-purple-500 rounded" style="width: {{ (count / (totals.seasons or 1) * 100) | round(2) }}%"></div>
-              </div>
-            </div>
-            {% endfor %}
-          </div>
-          <!-- Months -->
-          <div>
-            <h3 class="font-medium mb-2">Months</h3>
-            {% for month, count in sorted_months %}
-            <div class="mb-2">
-              <div class="flex items-center justify-between">
-                <span class="text-sm">{{ month }}</span>
-                <span class="text-xs font-semibold">{{ count }}</span>
-              </div>
-              <div class="w-full h-2 bg-gray-200 rounded">
-                <div class="h-2 bg-red-500 rounded" style="width: {{ (count / (totals.months or 1) * 100) | round(2) }}%"></div>
-              </div>
-            </div>
-            {% endfor %}
-          </div>
-          <!-- Dates -->
-          <div>
-            <h3 class="font-medium mb-2">Dates</h3>
-            {% for date_item in sorted_dates_top %}
-            {% set date_str = date_item[0] %}
-            {% set count = date_item[1] %}
-            <div class="mb-2">
-              <div class="flex items-center justify-between">
-                <span class="text-sm">{{ date_str }}</span>
-                <span class="text-xs font-semibold">{{ count }}</span>
-              </div>
-              <div class="w-full h-2 bg-gray-200 rounded">
-                <div class="h-2 bg-yellow-500 rounded" style="width: {{ (count / (totals.dates or 1) * 100) | round(2) }}%"></div>
-              </div>
-            </div>
-            {% endfor %}
-          </div>
-        </div>
-        <!-- Highlight the most popular choices -->
-        <div class="mt-4 space-y-1 text-sm">
-          {% if sorted_locations %}
-          <p><span class="font-medium">Most popular destination:</span> {{ location_details[sorted_locations[0][0]].name if sorted_locations[0][0] in location_details else sorted_locations[0][0] }}</p>
-          {% endif %}
-          {% if sorted_durations %}
-          <p><span class="font-medium">Most popular duration:</span> {{ sorted_durations[0][0] }}</p>
-          {% endif %}
-          {% if sorted_seasons %}
-          <p><span class="font-medium">Most popular season:</span> {{ sorted_seasons[0][0] }}</p>
-          {% endif %}
-          {% if sorted_months %}
-          <p><span class="font-medium">Best month:</span> {{ sorted_months[0][0] }}</p>
-          {% endif %}
-          {% if sorted_dates_top %}
-          <p><span class="font-medium">Best date:</span> {{ sorted_dates_top[0][0] }}</p>
-          {% endif %}
-        </div>
-      </section>
-      {% endif %}
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/flowbite@4.0.1/dist/flowbite.min.js"></script>

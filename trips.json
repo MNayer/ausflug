@@ -113,6 +113,72 @@
           "2028-07-18",
           "2028-07-27"
         ]
+      },
+      {
+        "name": "Felix",
+        "location": "steinfurt",
+        "duration": "Day trip",
+        "seasons": [
+          "Summer"
+        ],
+        "dates": [
+          "2026-07-08",
+          "2026-07-17",
+          "2026-07-21",
+          "2026-07-23"
+        ]
+      },
+      {
+        "name": null,
+        "location": "steinfurt",
+        "duration": "Day trip",
+        "seasons": [
+          "Summer"
+        ],
+        "dates": [
+          "2026-07-13",
+          "2026-07-16"
+        ]
+      },
+      {
+        "name": null,
+        "location": "steinfurt",
+        "duration": "Day trip",
+        "seasons": [
+          "Spring",
+          "Summer",
+          "Fall"
+        ],
+        "dates": [
+          "2026-07-13",
+          "2026-07-16"
+        ]
+      },
+      {
+        "name": null,
+        "location": "steinfurt",
+        "duration": "Day trip",
+        "seasons": [
+          "Spring",
+          "Summer",
+          "Fall"
+        ],
+        "dates": [
+          "2028-07-13"
+        ]
+      },
+      {
+        "name": null,
+        "location": "steinfurt",
+        "duration": "Day trip",
+        "seasons": [
+          "Spring",
+          "Summer",
+          "Fall"
+        ],
+        "dates": [
+          "2026-07-13"
+        ]
       }
     ]
   }
