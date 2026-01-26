@@ -4,16 +4,12 @@ RUN apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y \
       python3 \
-      python3-pip
-RUN pip3 install --break-system-packages \
-      flask \
-      uwsgi \
-      folium \
-      Flask-SQLAlchemy
+      python3-flask \
+      python3-folium \
+      python3-flask-sqlalchemy \
+      python3-gunicorn
 
 COPY app /app/
 WORKDIR /app/
 
-CMD ["flask", "run", "-h", "0.0.0.0"]
-#CMD ["uwsgi", "--http", ":5000", "--module", "app:app"]
-#CMD ["uwsgi", "--http", "0.0.0.0:5000", "--chdir", "/app", "--wsgi-file", "app.py", "--callable", "app", "--need-app"]
+CMD ["python3", "-m", "gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "app:create_app()"]
