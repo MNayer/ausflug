@@ -1,7 +1,7 @@
 import sqlite3
 import os
 
-db_path = "app.db"
+db_path = "data/app.db"
 
 def upgrade():
     if not os.path.exists(db_path):

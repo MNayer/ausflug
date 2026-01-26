@@ -1,0 +1,16 @@
+services:
+  trip:
+    build: .
+    restart: unless-stopped
+    ports: 
+      - 5000:5000
+    volumes:
+      - ./data:/app/data/
+    environment:
+      SECRET_KEY: 
+    networks:
+      - caddy_net
+
+networks:
+  caddy_net:
+    external: true

@@ -8,7 +8,7 @@ def create_app():
     app.secret_key = os.environ.get("SECRET_KEY", "change-me")
     
     # Database config
-    db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "app.db")
+    db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "app.db")
     app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
