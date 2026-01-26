@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}Ausflug{% endblock %}</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Flowbite & Tailwind -->
+    <link href="https://cdn.jsdelivr.net/npm/flowbite@4.0.1/dist/flowbite.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style type="text/tailwindcss">
+        @theme {
+            --font-sans: "Inter", sans-serif;
+            --font-heading: "Outfit", sans-serif;
+            --color-primary-50: #eff6ff;
+            --color-primary-100: #dbeafe;
+            --color-primary-500: #3b82f6;
+            --color-primary-600: #2563eb;
+            --color-accent: #f59e0b;
+        }
+        body {
+            font-family: var(--font-sans);
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            min-height: 100vh;
+        }
+        h1, h2, h3, h4, h5, h6 {
+            font-family: var(--font-heading);
+        }
+        .glass-panel {
+            @apply bg-white/70 backdrop-blur-lg border border-white/20 shadow-xl rounded-2xl;
+        }
+        .btn-primary {
+            @apply px-5 py-2.5 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-800 transition-all shadow-lg hover:shadow-xl focus:ring-4 focus:ring-gray-300;
+        }
+        .btn-secondary {
+            @apply px-5 py-2.5 bg-white text-gray-900 border border-gray-200 font-medium rounded-lg hover:bg-gray-50 transition-all shadow-sm hover:shadow-md focus:ring-4 focus:ring-gray-100;
+        }
+    </style>
+    {% block head %}{% endblock %}
+</head>
+<body class="flex flex-col text-slate-800 antialiased selection:bg-blue-100 selection:text-blue-900">
+    <nav class="fixed w-full z-20 top-0 start-0 border-b border-white/30 bg-white/60 backdrop-blur-md">
+        <div class="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto p-4">
+            <a href="{{ url_for('main.home') }}" class="flex items-center space-x-3 rtl:space-x-reverse">
+                <span class="self-center text-2xl font-bold whitespace-nowrap font-heading tracking-tight text-gray-900">Ausflug</span>
+            </a>
+            <div class="flex md:order-2 space-x-3 md:space-x-0 rtl:space-x-reverse">
+                <a href="{{ url_for('main.create_trip') }}" class="btn-primary text-sm px-4 py-2">
+                    Create New Trip
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex-grow container mx-auto px-4 py-8 mt-20 max-w-4xl">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="mb-6 space-y-2">
+                {% for category, message in messages %}
+                <div class="p-4 mb-4 text-sm rounded-lg shadow-sm {{ 'text-red-800 bg-red-50 border border-red-100' if category == 'error' else 'text-green-800 bg-green-50 border border-green-100' }}" role="alert">
+                    <span class="font-medium">{{ message }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="bg-white/50 backdrop-blur border-t border-white/20 shadow-inner mt-auto">
+        <div class="w-full max-w-screen-xl mx-auto p-4 md:py-8">
+            <span class="block text-sm text-gray-500 text-center">© 2026 <a href="#" class="hover:underline">Ausflug™</a>. All Rights Reserved.</span>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/flowbite@4.0.1/dist/flowbite.min.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

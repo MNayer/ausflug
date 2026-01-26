@@ -1,0 +1,438 @@
+{% extends "base.html" %}
+
+{% block title %}Multi-day Planner - {{ trip.name }}{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
+
+<style>
+    /* Mobile-First Layout Adjustments */
+    #map {
+        height: 100%;
+        width: 100%;
+        border-radius: 0.75rem;
+        z-index: 0;
+    }
+
+    .itinerary-list {
+        max-height: 40vh;
+        /* Default for mobile */
+        overflow-y: auto;
+    }
+
+    @media (min-width: 1024px) {
+        .itinerary-list {
+            max-height: calc(100vh - 350px);
+        }
+    }
+
+    .ghost {
+        opacity: 0.5;
+        background: #c8ebfb;
+    }
+
+    .error-line {
+        border-left: 3px solid #ef4444;
+        padding-left: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="h-[calc(100vh-100px)] flex flex-col lg:flex-row gap-4 lg:gap-6">
+
+    <!-- Sidebar -->
+    <div class="w-full lg:w-1/3 flex flex-col glass-panel p-4 lg:p-6 order-2 lg:order-1 h-1/2 lg:h-full">
+        <div class="flex items-center justify-between mb-2">
+            <h2 class="text-xl lg:text-2xl font-bold font-heading">Itinerary</h2>
+            <button id="save-btn" class="btn-primary text-xs px-3 py-1">Save Plan</button>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="mb-4 relative">
+            <input type="text" id="map-search"
+                class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg p-2.5"
+                placeholder="Search location (e.g. Rome)...">
+            <div id="map-search-results"
+                class="absolute z-50 w-full bg-white rounded-lg shadow-lg mt-1 hidden border border-gray-200"></div>
+        </div>
+
+        <!-- Working Area (New Item Logic) -->
+        <div id="add-panel" class="mb-2 space-y-2 p-3 bg-gray-50 rounded-lg border border-gray-200 hidden">
+            <h3 class="text-sm font-semibold text-gray-700">Add Stop</h3>
+            <input type="text" id="new-place-name" class="w-full p-2 text-sm border rounded" readonly>
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="text-xs text-gray-500">Arrival (Date)</label>
+                    <input type="date" id="new-arr" class="w-full p-1 text-xs border rounded">
+                </div>
+                <div>
+                    <label class="text-xs text-gray-500">Departure (Date)</label>
+                    <input type="date" id="new-dep" class="w-full p-1 text-xs border rounded">
+                </div>
+            </div>
+            <div class="flex gap-2 justify-end">
+                <button id="cancel-add-btn" class="text-xs text-gray-500 hover:text-gray-700">Cancel</button>
+                <button id="confirm-add-btn" class="btn-primary text-xs px-3 py-1">Add to Plan</button>
+            </div>
+        </div>
+
+        <ul id="itinerary" class="itinerary-list space-y-3 flex-1 pr-1 pb-4">
+            <!-- Items injected by JS -->
+        </ul>
+
+        <div id="status-msg" class="mt-1 text-xs text-center text-gray-500 h-4"></div>
+    </div>
+
+    <!-- Map -->
+    <div class="w-full lg:flex-1 h-1/2 lg:h-full glass-panel p-1 relative order-1 lg:order-2">
+        <div id="map"></div>
+
+        <!-- Floating Info Panel for Edges -->
+        <div id="edge-info-panel"
+            class="absolute bottom-4 left-4 right-4 lg:left-auto lg:right-4 bg-white/95 backdrop-blur p-4 rounded-lg shadow-xl z-[1000] lg:w-64 hidden border border-gray-200">
+            <h4 class="font-bold text-gray-800 mb-2">Trip Segment</h4>
+            <div class="text-sm space-y-2">
+                <p class="text-gray-600 truncate">From: <span id="edge-from" class="font-medium"></span></p>
+                <p class="text-gray-600 truncate">To: <span id="edge-to" class="font-medium"></span></p>
+                <hr>
+                <label class="block text-xs text-gray-500">Travel Mode</label>
+                <select id="edge-mode" class="w-full p-1 text-sm border rounded mb-2">
+                    <option value="car">🚗 Car</option>
+                    <option value="trek">🥾 Trekking</option>
+                    <option value="bike">🚲 Bicycle</option>
+                </select>
+                <label class="block text-xs text-gray-500">Est. Duration (Hours)</label>
+                <input type="number" id="edge-duration" class="w-full p-1 text-sm border rounded" step="0.5">
+                <div id="edge-weather" class="mt-2 text-xs text-blue-600"></div>
+                <div class="flex justify-end mt-2 gap-2">
+                    <button onclick="document.getElementById('edge-info-panel').classList.add('hidden')"
+                        class="text-xs text-gray-500">Cancel</button>
+                    <button id="save-edge-btn" class="btn-primary text-xs px-2 py-1">Update</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const DateTime = luxon.DateTime;
+    const tripId = "{{ trip.id }}";
+    const apiSave = "{{ url_for('multiday.save_itinerary', trip_id=trip.id) }}";
+    const apiLoad = "{{ url_for('multiday.load_itinerary', trip_id=trip.id) }}";
+
+    // Application State
+    let items = [];
+    // Item structure: 
+    // { id, name, lat, lng, arr: 'YYYY-MM-DD', dep: 'YYYY-MM-DD', 
+    //   next_edge: { mode: 'car', duration_hours: 2.0 } }
+
+    let mapMarkers = [];
+    let mapPolylines = [];
+    let tempMarker = null;
+    let selectedEdgeIndex = null;
+
+    // Map Init
+    const map = L.map('map').setView([48.8566, 2.3522], 5);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap &copy; CARTO'
+    }).addTo(map);
+
+    // --- Search Logic ---
+    const searchInput = document.getElementById('map-search');
+    const searchResults = document.getElementById('map-search-results');
+    let debounce;
+
+    searchInput.addEventListener('input', (e) => {
+        clearTimeout(debounce);
+        const q = e.target.value;
+        if (q.length < 3) return searchResults.classList.add('hidden');
+        debounce = setTimeout(() => {
+            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`)
+                .then(r => r.json()).then(data => {
+                    searchResults.innerHTML = '';
+                    if (data.length) {
+                        searchResults.classList.remove('hidden');
+                        data.slice(0, 5).forEach(d => {
+                            const div = document.createElement('div');
+                            div.className = "p-2 hover:bg-gray-100 cursor-pointer text-sm border-b last:border-b-0";
+                            div.innerText = d.display_name;
+                            div.onclick = () => selectSearchResult(d);
+                            searchResults.appendChild(div);
+                        });
+                    }
+                });
+        }, 500);
+    });
+
+    function selectSearchResult(d) {
+        searchResults.classList.add('hidden');
+        searchInput.value = ''; // clear
+        const lat = parseFloat(d.lat);
+        const lon = parseFloat(d.lon);
+
+        map.setView([lat, lon], 10);
+        if (tempMarker) map.removeLayer(tempMarker);
+        tempMarker = L.marker([lat, lon]).addTo(map);
+
+        // Show Add Panel
+        document.getElementById('add-panel').classList.remove('hidden');
+        document.getElementById('new-place-name').value = d.display_name.split(',')[0];
+
+        // Smart defaults for dates (Date Only)
+        const lastItem = items[items.length - 1];
+        let defaultDate = DateTime.now().toFormat('yyyy-MM-dd');
+        if (lastItem && lastItem.dep) {
+            // Default to next day after last departure
+            defaultDate = DateTime.fromISO(lastItem.dep).plus({ days: 1 }).toFormat('yyyy-MM-dd');
+        }
+        document.getElementById('new-arr').value = defaultDate;
+        document.getElementById('new-dep').value = defaultDate;
+    }
+
+    // Cancel Add
+    document.getElementById('cancel-add-btn').onclick = () => {
+        document.getElementById('add-panel').classList.add('hidden');
+        if (tempMarker) map.removeLayer(tempMarker);
+        tempMarker = null;
+    };
+
+    // Confirm Add
+    document.getElementById('confirm-add-btn').onclick = () => {
+        const name = document.getElementById('new-place-name').value;
+        const arr = document.getElementById('new-arr').value;
+        const dep = document.getElementById('new-dep').value;
+
+        if (!tempMarker) return;
+        const { lat, lng } = tempMarker.getLatLng();
+
+        const newItem = {
+            id: Date.now().toString(),
+            name, lat, lng,
+            arr, dep,
+            next_edge: { mode: 'car', duration_hours: 2 } // default edge to next
+        };
+
+        items.push(newItem);
+
+        document.getElementById('add-panel').classList.add('hidden');
+        if (tempMarker) map.removeLayer(tempMarker);
+        tempMarker = null;
+
+        render();
+        saveData();
+    };
+
+
+    // --- Rendering ---
+    function render() {
+        const list = document.getElementById('itinerary');
+        list.innerHTML = "";
+
+        // Map reset
+        mapMarkers.forEach(m => map.removeLayer(m));
+        mapPolylines.forEach(p => map.removeLayer(p));
+        mapMarkers = [];
+        mapPolylines = [];
+
+        items.forEach((item, idx) => {
+            // -- Render List Item (The Stop itself) --
+            const li = document.createElement('li');
+            li.className = "bg-white border border-gray-100 rounded-lg p-3 shadow-sm hover:shadow-md transition cursor-grab relative z-10";
+
+            // Validation Logic (Dates)
+            let errorMsg = "";
+            let prev = items[idx - 1];
+            if (prev) {
+                if (item.arr && prev.dep && item.arr < prev.dep) {
+                    li.classList.add('border-red-400', 'error-line');
+                    errorMsg = `<div class="text-xs text-red-500 mt-1">⚠️ Check dates</div>`;
+                }
+            }
+
+            // Weather Placeholder ID
+            const wId = `weather-${item.id}`;
+            fetchWeather(item.lat, item.lng, item.arr, wId);
+
+            li.innerHTML = `
+                <div class="flex justify-between items-start gap-2">
+                    <div class="flex-1">
+                         <div class="flex items-center gap-2">
+                            <span class="font-bold text-gray-800 text-sm">${item.name}</span>
+                         </div>
+                         <div class="text-xs text-gray-500 mt-2 flex gap-2">
+                             <div>Arr: <input type="date" class="border rounded px-1 w-24" value="${item.arr}" onchange="updateItem('${item.id}', 'arr', this.value)"></div>
+                             <div>Dep: <input type="date" class="border rounded px-1 w-24" value="${item.dep}" onchange="updateItem('${item.id}', 'dep', this.value)"></div>
+                         </div>
+                         <div id="${wId}" class="mt-1 text-xs text-indigo-500 font-medium h-4"></div>
+                         ${errorMsg}
+                    </div>
+                    <button onclick="removeItem('${item.id}')" class="text-gray-400 hover:text-red-500 p-1">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+            `;
+            list.appendChild(li);
+
+            // -- Render Map Marker --
+            const m = L.marker([item.lat, item.lng]).addTo(map).bindPopup(`<b>${item.name}</b>`);
+            mapMarkers.push(m);
+
+            // -- Render Edge to Next Item (Inline in List) --
+            if (idx < items.length - 1) {
+                const next = items[idx + 1];
+                // Ensure edge object exists
+                if (!item.next_edge) item.next_edge = { mode: 'car', duration_hours: 2 };
+
+                const edgeWidget = document.createElement('li');
+                edgeWidget.className = "ml-4 pl-4 border-l-2 border-dashed border-gray-300 py-2 my-1";
+                const wEdgeId = `weather-edge-${item.id}`;
+
+                // Fetch Route Weather (midpoint)
+                const midLat = (item.lat + next.lat) / 2;
+                const midLng = (item.lng + next.lng) / 2;
+                fetchWeather(midLat, midLng, item.dep, wEdgeId, true);
+
+                edgeWidget.innerHTML = `
+                   <div class="flex items-center gap-2 text-xs">
+                       <select class="border rounded p-1 bg-gray-50" onchange="updateItineraryEdge('${item.id}', 'mode', this.value)">
+                           <option value="car" ${item.next_edge.mode === 'car' ? 'selected' : ''}>🚗 Car</option>
+                           <option value="trek" ${item.next_edge.mode === 'trek' ? 'selected' : ''}>🥾 Trek</option>
+                           <option value="bike" ${item.next_edge.mode === 'bike' ? 'selected' : ''}>🚲 Bike</option>
+                       </select>
+                       <input type="number" class="border rounded p-1 w-12 text-center" value="${item.next_edge.duration_hours}" step="0.5" onchange="updateItineraryEdge('${item.id}', 'duration_hours', parseFloat(this.value))">
+                       <span class="text-gray-500">hrs</span>
+                   </div>
+                   <div id="${wEdgeId}" class="text-xs text-blue-500 mt-1 pl-1"></div>
+                `;
+                list.appendChild(edgeWidget);
+
+                // -- Render Map Polyline --
+                const mode = item.next_edge.mode;
+                const color = mode === 'car' ? '#3b82f6' : (mode === 'trek' ? '#f97316' : '#84cc16');
+                const dash = mode === 'car' ? null : '5, 5';
+
+                const poly = L.polyline([[item.lat, item.lng], [next.lat, next.lng]], {
+                    color: color, weight: 4, dashArray: dash, opacity: 0.8
+                }).addTo(map);
+                mapPolylines.push(poly);
+            }
+        });
+
+        if (mapMarkers.length) {
+            const g = L.featureGroup(mapMarkers);
+            map.fitBounds(g.getBounds().pad(0.2));
+        }
+    }
+
+    // --- Logic & Helpers ---
+    window.updateItem = (id, field, val) => {
+        const it = items.find(i => i.id === id);
+        if (it) { it[field] = val; render(); saveData(); }
+    };
+
+    window.updateItineraryEdge = (itemId, field, val) => {
+        const it = items.find(i => i.id === itemId);
+        if (it && it.next_edge) {
+            it.next_edge[field] = val;
+            render();
+            saveData();
+        }
+    };
+
+    window.removeItem = (id) => {
+        items = items.filter(i => i.id !== id);
+        render(); saveData();
+    };
+
+    function fetchWeather(lat, lng, dateStr, elementId, isRoute = false) {
+        if (!dateStr) return;
+
+        // Open-Meteo needs YYYY-MM-DD
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&daily=weather_code,temperature_2m_max&timezone=auto&start_date=${dateStr}&end_date=${dateStr}`;
+
+        fetch(url).then(r => r.json()).then(data => {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+
+            if (data.daily && data.daily.temperature_2m_max && data.daily.temperature_2m_max.length > 0) {
+                const temp = data.daily.temperature_2m_max[0];
+                const code = data.daily.weather_code[0];
+
+                // Fixed WMO Code Mapping
+                // 0=Clear, 1-3=Cloud, 45/48=Fog, 51-67=Drizzle/Rain, 71-77=Snow, 95+=Thunder
+                let icon = "☀️";
+                if (code >= 1 && code <= 3) icon = "☁️";
+                if (code >= 45 && code <= 48) icon = "🌫️";
+                if (code >= 51 && code <= 67) icon = "🌧️";
+                if (code >= 71 && code <= 77) icon = "❄️";
+                if (code >= 80 && code <= 82) icon = "🌦️";
+                if (code >= 95) icon = "⛈️";
+
+                el.innerText = `${isRoute ? 'On route' : 'Cond'}: ${icon} ${temp}°C`;
+            } else {
+                el.innerText = "";
+            }
+        }).catch(() => {
+            // silent fail
+        });
+    }
+
+    function saveData() {
+        const s = document.getElementById('status-msg');
+        s.innerText = "Saving...";
+        fetch(apiSave, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(items)
+        }).then(() => {
+            s.innerText = "Saved";
+            setTimeout(() => s.innerText = "", 2000);
+        });
+    }
+
+    // Load
+    fetch(apiLoad).then(r => r.json()).then(data => {
+        if (Array.isArray(data)) {
+            items = data;
+            render();
+        }
+    });
+
+    // Sortable
+    new Sortable(document.getElementById('itinerary'), {
+        animation: 150,
+        ghostClass: 'ghost',
+        handle: 'span',
+        onEnd: (evt) => {
+            const newOrderIds = Array.from(document.getElementById('itinerary').children)
+                .filter(el => !el.classList.contains('border-dashed')) // Ignore edge widgets
+                .map(el => {
+                    // We need a way to get ID. Let's add data-id to the main LI.
+                    const btn = el.querySelector('button[onclick^="removeItem"]');
+                    if (btn) {
+                        const m = btn.getAttribute('onclick').match(/'([^']+)'/);
+                        return m ? m[1] : null;
+                    }
+                    return null;
+                }).filter(id => id);
+
+            if (newOrderIds.length === items.length) {
+                const newItems = newOrderIds.map(id => items.find(i => i.id === id));
+                items = newItems;
+                render();
+                saveData();
+            }
+        }
+    });
+
+</script>
+{% endblock %}

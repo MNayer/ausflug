@@ -1,0 +1,572 @@
+{% extends "base.html" %}
+
+{% block title %}Plan {{ trip.name }} - Ausflug{% endblock %}
+
+{% block head %}
+<!-- Datepicker styles -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<style>
+  /* Custom Flatpickr Theme - Glassmorphism */
+  .flatpickr-calendar {
+    background: rgba(255, 255, 255, 0.95) !important;
+    backdrop-filter: blur(16px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.5) !important;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+    border-radius: 1rem !important;
+    font-family: 'Outfit', sans-serif !important;
+    padding: 1rem !important;
+  }
+
+  .flatpickr-calendar.arrowTop:before,
+  .flatpickr-calendar.arrowTop:after {
+    display: none !important;
+    /* Hide arrows for cleaner look */
+  }
+
+  .flatpickr-months .flatpickr-month {
+    background: transparent !important;
+    color: #1f2937 !important;
+    fill: #1f2937 !important;
+  }
+
+  .flatpickr-current-month .flatpickr-monthDropdown-months {
+    font-weight: 700 !important;
+  }
+
+  .flatpickr-weekdays {
+    background: transparent !important;
+  }
+
+  .flatpickr-weekday {
+    color: #6b7280 !important;
+    font-weight: 600 !important;
+  }
+
+  .flatpickr-day {
+    border-radius: 0.5rem !important;
+    border: none !important;
+    color: #374151 !important;
+    font-weight: 500 !important;
+    transition: all 0.2s;
+  }
+
+  .flatpickr-day.flatpickr-disabled,
+  .flatpickr-day.flatpickr-disabled:hover {
+    color: #d1d5db !important;
+    background: transparent !important;
+    border-color: transparent !important;
+  }
+
+  .flatpickr-day:hover {
+    background: #f3f4f6 !important;
+  }
+
+  .flatpickr-day.selected,
+  .flatpickr-day.startRange,
+  .flatpickr-day.endRange,
+  .flatpickr-day.selected.inRange,
+  .flatpickr-day.startRange.inRange,
+  .flatpickr-day.endRange.inRange,
+  .flatpickr-day:focus,
+  .flatpickr-day:hover.selected,
+  .flatpickr-day:hover.startRange,
+  .flatpickr-day:hover.endRange {
+    background: #1f2937 !important;
+    color: #fff !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Season Indicators */
+  .season-dot {
+    position: absolute;
+    bottom: 2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    opacity: 0.8;
+  }
+
+  .season-spring-bg {
+    background: #ecfccb !important;
+    color: #365314 !important;
+  }
+
+  /* Lime-100 */
+  .season-summer-bg {
+    background: #fef3c7 !important;
+    color: #78350f !important;
+  }
+
+  /* Amber-100 */
+  .season-fall-bg {
+    background: #ffedd5 !important;
+    color: #7c2d12 !important;
+  }
+
+  /* Orange-100 */
+  .season-winter-bg {
+    background: #e0f2fe !important;
+    color: #0c4a6e !important;
+  }
+
+  /* Sky-100 */
+
+  /* Toast Notification */
+  #toast-notification {
+    visibility: hidden;
+    min-width: 250px;
+    background-color: #333;
+    color: #fff;
+    text-align: center;
+    border-radius: 8px;
+    padding: 16px;
+    position: fixed;
+    z-index: 9999;
+    left: 50%;
+    bottom: 30px;
+    transform: translateX(-50%);
+    font-size: 14px;
+    opacity: 0;
+    transition: opacity 0.3s, bottom 0.3s;
+  }
+
+  #toast-notification.show {
+    visibility: visible;
+    opacity: 1;
+    bottom: 50px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+
+  <!-- Header Section -->
+  <div class="glass-panel p-8">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div>
+        <h1 class="text-3xl font-bold font-heading text-gray-900">{{ trip.name }}</h1>
+        {% if trip.creator_name %}
+        <p class="text-lg text-gray-600 mt-1">
+          Hosted by <span class="font-medium text-gray-900">{{ trip.creator_name }}</span>
+        </p>
+        {% endif %}
+      </div>
+      <div class="flex flex-col sm:flex-row gap-3">
+        <div class="relative">
+          <input type="text" id="share-link" value="{{ share_url }}" readonly class="hidden">
+          <button onclick="copyLink()"
+            class="btn-secondary flex items-center justify-center w-full sm:w-auto hover:bg-gray-100 border-gray-200">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3">
+              </path>
+            </svg>
+            Share Trip
+          </button>
+        </div>
+        <!-- Link to Multi-day planner -->
+        <a href="{{ url_for('multiday.planner', trip_id=trip.id) }}"
+          class="btn-primary flex items-center justify-center w-full sm:w-auto bg-gray-900 hover:bg-gray-800 text-white shadow-none">
+          <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7">
+            </path>
+          </svg>
+          Map Planner
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+    <!-- Left Column: Survey Form -->
+    <div class="lg:col-span-2 space-y-6">
+      <div class="glass-panel p-8">
+        <h2 class="text-2xl font-bold font-heading mb-6 text-gray-800 border-b pb-2 border-gray-100">Your Preference
+        </h2>
+
+        <form method="post" class="space-y-8">
+          <!-- Location Selection -->
+          <section class="space-y-4">
+            <h3 class="text-lg font-semibold text-gray-700">Destination</h3>
+            {% if allowed_locations|length > 1 %}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {% for loc in allowed_locations %}
+              <label class="cursor-pointer block relative group">
+                <input type="radio" name="location" value="{{ loc.code }}" class="hidden peer" required>
+                <div
+                  class="border-2 border-transparent bg-white shadow-sm rounded-xl overflow-hidden transition-all peer-checked:border-gray-400 peer-checked:ring-2 peer-checked:ring-gray-200 peer-checked:shadow-md group-hover:shadow-md grayscale peer-checked:grayscale-0">
+                  <div class="h-40 bg-gray-100 relative">
+                    <iframe src="{{ url_for('static', filename=loc.src) }}" title="{{ loc.alt }}"
+                      class="w-full h-full pointer-events-none" frameborder="0" scrolling="no"></iframe>
+                    <div class="absolute inset-0 bg-transparent"></div> <!-- Overlay to capture click on label -->
+                  </div>
+                  <div
+                    class="p-3 text-center font-medium text-gray-700 peer-checked:text-gray-900 peer-checked:bg-gray-50">
+                    {{ loc.name }}
+                  </div>
+                  <div class="absolute top-2 right-2 opacity-0 peer-checked:opacity-100 transition-opacity">
+                    <div class="bg-gray-900 text-white rounded-full p-1 shadow-sm">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </label>
+              {% endfor %}
+            </div>
+            {% else %}
+            <input type="hidden" name="location" value="{{ allowed_locations[0].code }}">
+            <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 flex items-center text-gray-800">
+              <svg class="w-6 h-6 mr-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+              </svg>
+              <span class="font-medium">Destination set to {{ allowed_locations[0].name }}</span>
+            </div>
+            {% endif %}
+          </section>
+
+          <!-- Duration Selection -->
+          <section class="space-y-4">
+            <h3 class="text-lg font-semibold text-gray-700">Duration</h3>
+            {% if allowed_durations|length > 1 %}
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {% for dur in allowed_durations %}
+              <label class="cursor-pointer block">
+                <input type="radio" name="duration" value="{{ dur }}" class="hidden peer" required>
+                <div
+                  class="py-3 px-4 text-center border border-gray-200 bg-white rounded-lg transition-all peer-checked:bg-gray-800 peer-checked:text-white peer-checked:border-gray-800 shadow-sm hover:bg-gray-50">
+                  {{ dur }}
+                </div>
+              </label>
+              {% endfor %}
+            </div>
+            {% else %}
+            <input type="hidden" name="duration" value="{{ allowed_durations[0] }}">
+            <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 text-gray-600 inline-block font-medium px-4">
+              Fixed Duration: {{ allowed_durations[0] }}
+            </div>
+            {% endif %}
+          </section>
+
+          <!-- Season Selection -->
+          <section class="space-y-4">
+            <h3 class="text-lg font-semibold text-gray-700">Preferred Seasons</h3>
+            {% if allowed_seasons|length > 1 %}
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {% for season in allowed_seasons %}
+              <label class="cursor-pointer block">
+                <input type="checkbox" name="seasons" value="{{ season.name }}" class="hidden peer">
+                <div
+                  class="border border-gray-200 bg-white rounded-xl p-4 flex flex-col items-center gap-3 transition-all peer-checked:border-gray-500 peer-checked:ring-1 peer-checked:ring-gray-300 shadow-sm hover:shadow-md opacity-75 peer-checked:opacity-100">
+                  <div class="w-16 h-16 flex items-center justify-center">
+                    <img src="{{ url_for('static', filename=season.image) }}" alt="{{ season.name }}"
+                      class="w-full h-full object-contain filter drop-shadow-lg">
+                  </div>
+                  <span class="text-sm font-medium text-gray-700">{{ season.name }}</span>
+                </div>
+              </label>
+              {% endfor %}
+            </div>
+            {% else %}
+            <input type="hidden" name="seasons" value="{{ allowed_seasons[0].name }}">
+            <div class="flex items-center gap-3 bg-gray-50 p-3 rounded-lg border border-gray-200 w-max">
+              <img src="{{ url_for('static', filename=allowed_seasons[0].image) }}" alt="{{ allowed_seasons[0].name }}"
+                class="w-8 h-8 object-contain">
+              <span class="font-medium text-gray-700">{{ allowed_seasons[0].name }}</span>
+            </div>
+            {% endif %}
+          </section>
+
+          <!-- Dates Selection -->
+          <section class="space-y-4">
+            <h3 class="text-lg font-semibold text-gray-700">Available Dates</h3>
+
+            <!-- Selected Date Chips Container -->
+            <div id="date-chips-container" class="flex flex-wrap gap-2 mb-2 min-h-[0px]">
+              <!-- Chips injected via JS -->
+            </div>
+
+            <div class="relative max-w-sm">
+              <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none text-gray-500">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                </svg>
+              </div>
+              <!-- Input is effectively hidden by the chips/UI but acts as trigger -->
+              <input id="date-picker" name="dates" type="text" placeholder="Select dates..." readonly
+                style="color: transparent !important; text-shadow: 0 0 0 transparent; caret-color: transparent;"
+                class="bg-white border border-gray-300 text-sm rounded-lg focus:ring-gray-500 focus:border-gray-500 block w-full ps-10 p-2.5 shadow-sm cursor-pointer select-none text-transparent" />
+            </div>
+            <p class="text-xs text-gray-500">Select seasons first to unlock relevant dates.</p>
+          </section>
+
+          <!-- Hidden input to store dates for form submission -->
+          <input type="hidden" name="dates" id="dates-hidden">
+
+          <!-- Name Input -->
+          <section class="space-y-4">
+            <label for="participant_name" class="text-lg font-semibold text-gray-700 block">Your Name (Optional)</label>
+            <input type="text" id="participant_name" name="participant_name" placeholder="Who is voting?"
+              class="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-gray-500 focus:border-gray-500 block w-full p-2.5 shadow-sm">
+          </section>
+
+          <button type="submit"
+            class="w-full btn-primary text-lg py-3 shadow-blue-200 bg-gray-900 hover:bg-gray-800 text-white">
+            Submit Preferences
+          </button>
+          <p class="text-center text-xs text-gray-400">Your selection will be added to the group results.</p>
+        </form>
+      </div>
+    </div>
+
+    <!-- Right Column: Results Summary -->
+    <div class="lg:col-span-1 space-y-6">
+      <div class="glass-panel p-6 sticky top-24">
+        <h2 class="text-xl font-bold font-heading mb-4 text-gray-900">Current Results</h2>
+
+        {% if trip.responses %}
+        <div class="space-y-6">
+          <!-- Top Stats -->
+          {% if sorted_locations %}
+          <div class="bg-gradient-to-br from-gray-50 to-slate-100 rounded-xl p-4 border border-gray-200">
+            <p class="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-1">Top Destination</p>
+            <p class="font-bold text-gray-900 text-lg leading-tight">
+              {{ location_details[sorted_locations[0][0]].name if sorted_locations[0][0] in location_details else
+              sorted_locations[0][0] }}
+            </p>
+            <div class="mt-2 w-full bg-white/50 h-1.5 rounded-full overflow-hidden">
+              <div class="bg-gray-800 h-1.5 rounded-full"
+                style="width: {{ (sorted_locations[0][1] / (totals.locations or 1) * 100) }}%"></div>
+            </div>
+          </div>
+          {% endif %}
+
+          <!-- Charts List -->
+          <div class="space-y-4">
+            <div>
+              <h4 class="text-sm font-semibold text-gray-900 mb-2">Destinations</h4>
+              {% for code, count in sorted_locations[:3] %}
+              <div class="mb-2">
+                <div class="flex justify-between text-xs mb-1">
+                  <span class="text-gray-600">{{ location_details[code].name if code in location_details else code
+                    }}</span>
+                  <span class="font-medium">{{ count }}</span>
+                </div>
+                <div class="w-full bg-gray-100 rounded-full h-1.5">
+                  <div class="bg-gray-600 h-1.5 rounded-full"
+                    style="width: {{ (count / (totals.locations or 1) * 100) }}%"></div>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+
+            <div>
+              <h4 class="text-sm font-semibold text-gray-900 mb-2">Preferred Dates</h4>
+              {% for date_item in sorted_dates_top %}
+              <div class="mb-2">
+                <div class="flex justify-between text-xs mb-1">
+                  <span class="text-gray-600">{{ date_item[0] }}</span>
+                  <span class="font-medium">{{ date_item[1] }}</span>
+                </div>
+                <div class="w-full bg-gray-100 rounded-full h-1.5">
+                  <div class="bg-emerald-500 h-1.5 rounded-full"
+                    style="width: {{ (date_item[1] / (totals.dates or 1) * 100) }}%"></div>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="pt-4 border-t border-gray-100 text-center">
+            <span class="text-3xl font-bold text-gray-900">{{ trip.responses|length }}</span>
+            <p class="text-sm text-gray-500">Votes collected so far</p>
+          </div>
+
+        </div>
+        {% else %}
+        <div class="text-center py-8 text-gray-500">
+          <p>No votes yet.</p>
+          <p class="text-sm">Be the first to vote!</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Simple Toast -->
+<div id="toast-notification">Please select at least one season first!</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script>
+  function copyLink() {
+    const input = document.getElementById('share-link');
+    const originalText = document.querySelector('button[onclick="copyLink()"]').innerHTML;
+    const btn = document.querySelector('button[onclick="copyLink()"]');
+
+    navigator.clipboard.writeText(input.value).then(() => {
+      btn.innerHTML = `<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Copied!`;
+      btn.classList.add('bg-green-100');
+      setTimeout(() => {
+        btn.innerHTML = originalText;
+        btn.classList.remove('bg-green-100');
+      }, 2000);
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    // --- Season Logic --
+    const seasonCheckboxes = document.querySelectorAll('input[name="seasons"]');
+
+    function getSeason(date) {
+      const m = date.getMonth() + 1; // 1-12
+      if (m >= 3 && m <= 5) return 'Spring';
+      if (m >= 6 && m <= 8) return 'Summer';
+      if (m >= 9 && m <= 11) return 'Fall';
+      return 'Winter';
+    }
+
+    const fp = flatpickr("#date-picker", {
+      mode: "multiple",
+      dateFormat: "Y-m-d",
+      minDate: "today",
+      maxDate: new Date().fp_incr(365 * 2), // 2 years out
+      disableMobile: "true", // Force custom UI
+      onOpen: function (selectedDates, dateStr, instance) {
+        // Check if any season is selected
+        const anyChecked = Array.from(seasonCheckboxes).some(cb => cb.checked);
+        if (seasonCheckboxes.length > 0 && !anyChecked) {
+          instance.close();
+          showToast("Please select at least one season first!");
+        }
+      },
+      onDayCreate: function (dObj, dStr, fp, dayElem) {
+        const date = dayElem.dateObj;
+        const season = getSeason(date);
+
+        // Apply Visual Cues for Seasons (Background Colors)
+        if (season === 'Spring') dayElem.classList.add('season-spring-bg');
+        if (season === 'Summer') dayElem.classList.add('season-summer-bg');
+        if (season === 'Fall') dayElem.classList.add('season-fall-bg');
+        if (season === 'Winter') dayElem.classList.add('season-winter-bg');
+      },
+      onChange: function (selectedDates, dateStr, instance) {
+        document.getElementById('dates-hidden').value = dateStr;
+        updateDateChips(selectedDates);
+      }
+    });
+
+    function updateAvailableDates() {
+      const selectedSeasons = Array.from(seasonCheckboxes)
+        .filter(cb => cb.checked).map(cb => cb.value);
+
+      if (seasonCheckboxes.length === 0) return;
+
+      fp.set('disable', [
+        function (date) {
+          const s = getSeason(date);
+          return !selectedSeasons.includes(s);
+        }
+      ]);
+    }
+
+    // --- Date Chips Visualization & Logic ---
+    function updateDateChips(dates) {
+      const container = document.getElementById('date-chips-container');
+      container.innerHTML = "";
+
+      if (!dates || dates.length === 0) return;
+
+      // Sort dates
+      const sorted = [...dates].sort((a, b) => a - b);
+
+      // Group into ranges
+      const ranges = [];
+      if (sorted.length > 0) {
+        let start = sorted[0];
+        let end = sorted[0];
+
+        for (let i = 1; i < sorted.length; i++) {
+          const current = sorted[i];
+          // Check if consecutive (difference of 1 day)
+          const diffTime = current - end;
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+          if (diffDays === 1) {
+            end = current;
+          } else {
+            ranges.push({ start, end });
+            start = current;
+            end = current;
+          }
+        }
+        ranges.push({ start, end });
+      }
+
+      // Render ranges
+      ranges.forEach(range => {
+        const chip = document.createElement('div');
+        chip.className = "flex items-center gap-2 bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-1 rounded-full border border-gray-200";
+
+        const fmt = (d) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        const text = (range.start.getTime() === range.end.getTime())
+          ? fmt(range.start)
+          : `${fmt(range.start)} - ${fmt(range.end)}`;
+
+        chip.innerHTML = `
+                    <span>${text}</span>
+                    <button type="button" class="text-gray-400 hover:text-gray-900 p-0.5 rounded-full hover:bg-gray-200 transition">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                `;
+
+        // Add Remove Listener
+        chip.querySelector('button').onclick = (e) => {
+          e.preventDefault();
+          removeDateRange(range.start, range.end);
+        };
+
+        container.appendChild(chip);
+      });
+    }
+
+    function removeDateRange(start, end) {
+      // Filter out dates falling within this range
+      const newDates = fp.selectedDates.filter(d => {
+        return d < start || d > end;
+      });
+      fp.setDate(newDates, true); // Trigger change event
+    }
+
+    if (seasonCheckboxes.length > 0) {
+      seasonCheckboxes.forEach(cb => cb.addEventListener("change", updateAvailableDates));
+      updateAvailableDates(); // Init
+    }
+
+    // Initial call to update chips if dates are pre-selected
+    updateDateChips(fp.selectedDates);
+
+    // --- Toast Logic ---
+    window.showToast = function (msg) {
+      const t = document.getElementById("toast-notification");
+      t.innerText = msg;
+      t.classList.add("show");
+      setTimeout(() => { t.classList.remove("show"); }, 3000);
+    }
+  });
+</script>
+{% endblock %}

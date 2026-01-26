@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block title %}Create New Trip - Ausflug{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+  <div class="glass-panel p-8 mb-8">
+    <h1 class="text-3xl font-bold font-heading mb-2 text-gray-900">Create a New Trip</h1>
+    <p class="text-gray-500 mb-8">Configure your trip options and invite your friends to vote.</p>
+
+    <form method="post" class="space-y-6">
+      <div>
+        <label for="trip_name" class="block mb-2 text-sm font-medium text-gray-900">Trip Name</label>
+        <input type="text" id="trip_name" name="trip_name"
+          class="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-gray-500 focus:border-gray-500 block w-full p-2.5"
+          placeholder="e.g. Summer Vacation 2026" required>
+      </div>
+
+      <div>
+        <label for="names" class="block mb-2 text-sm font-medium text-gray-900">Your Name(s)</label>
+        <input type="text" id="names" name="names"
+          class="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-gray-500 focus:border-gray-500 block w-full p-2.5"
+          placeholder="e.g. Alice & Bob">
+      </div>
+
+      <div>
+        <label for="destinations" class="block mb-2 text-sm font-medium text-gray-900">Destinations</label>
+        <div class="relative mb-2">
+          <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
+            <svg class="w-4 h-4 text-gray-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none"
+              viewBox="0 0 20 20">
+              <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z" />
+            </svg>
+          </div>
+        </div>
+        <input type="text" id="location-search"
+          class="block w-full p-2.5 ps-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:ring-gray-500 focus:border-gray-500"
+          placeholder="Search for a city..." autocomplete="off">
+        <div id="search-results"
+          class="absolute z-10 w-full bg-white rounded-lg shadow-lg mt-1 hidden border border-gray-200">
+          <!-- Results injected here -->
+        </div>
+      </div>
+
+      <!-- Hidden input to store the final CSV string expected by the backend -->
+      <input type="hidden" id="destinations" name="destinations" required>
+
+      <ul id="destination-list" class="space-y-2 mb-2">
+        <!-- Added destinations appear here -->
+      </ul>
+      <p class="text-xs text-gray-500">Search and click to add multiple destinations.</p>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div>
+      <label class="block mb-2 text-sm font-medium text-gray-900">Allowed Durations</label>
+      <div class="space-y-2 bg-gray-50 p-4 rounded-lg border border-gray-200">
+        {% for duration in durations %}
+        <div class="flex items-center">
+          <input id="duration_{{ loop.index }}" name="durations" type="checkbox" value="{{ duration }}" checked
+            class="w-4 h-4 text-gray-600 bg-gray-100 border-gray-300 rounded focus:ring-gray-500">
+          <label for="duration_{{ loop.index }}" class="ml-2 text-sm font-medium text-gray-900">{{ duration
+            }}</label>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div>
+      <label class="block mb-2 text-sm font-medium text-gray-900">Allowed Seasons</label>
+      <div class="space-y-2 bg-gray-50 p-4 rounded-lg border border-gray-200">
+        {% for season in seasons %}
+        <div class="flex items-center">
+          <input id="season_{{ loop.index }}" name="seasons" type="checkbox" value="{{ season.name }}" checked
+            class="w-4 h-4 text-gray-600 bg-gray-100 border-gray-300 rounded focus:ring-gray-500">
+          <label for="season_{{ loop.index }}" class="ml-2 text-sm font-medium text-gray-900">{{ season.name
+            }}</label>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="pt-4">
+    <button type="submit" class="w-full btn-primary text-lg">
+      Create Trip & Start Planning
+    </button>
+  </div>
+  </form>
+</div>
+</div>
+
+<script>
+  const searchInput = document.getElementById('location-search');
+  const resultsContainer = document.getElementById('search-results');
+  const listContainer = document.getElementById('destination-list');
+  const hiddenInput = document.getElementById('destinations');
+
+  let debounceTimer;
+  let addedDestinations = [];
+
+  searchInput.addEventListener('input', (e) => {
+    clearTimeout(debounceTimer);
+    const query = e.target.value.trim();
+    if (query.length < 3) {
+      resultsContainer.classList.add('hidden');
+      return;
+    }
+
+    debounceTimer = setTimeout(() => {
+      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`)
+        .then(res => res.json())
+        .then(data => {
+          resultsContainer.innerHTML = '';
+          if (data.length > 0) {
+            resultsContainer.classList.remove('hidden');
+            data.slice(0, 5).forEach(item => {
+              const div = document.createElement('div');
+              div.className = "p-2.5 hover:bg-gray-100 cursor-pointer text-sm border-b last:border-b-0";
+              div.textContent = item.display_name;
+              // Extract just the city/place name for the hidden input
+              const shortName = item.display_name.split(',')[0];
+              div.onclick = () => addDestination(shortName, item.lat, item.lon);
+              resultsContainer.appendChild(div);
+            });
+          } else {
+            resultsContainer.classList.add('hidden');
+          }
+        });
+    }, 500);
+  });
+
+  // Close results on click outside
+  document.addEventListener('click', (e) => {
+    if (!searchInput.contains(e.target) && !resultsContainer.contains(e.target)) {
+      resultsContainer.classList.add('hidden');
+    }
+  });
+
+  function addDestination(name, lat, lon) {
+    const id = Date.now();
+    addedDestinations.push({ id, name, lat, lon });
+    renderList();
+    updateHiddenInput();
+    searchInput.value = '';
+    resultsContainer.classList.add('hidden');
+  }
+
+  function removeDestination(id) {
+    addedDestinations = addedDestinations.filter(d => d.id !== id);
+    renderList();
+    updateHiddenInput();
+  }
+
+  function renderList() {
+    listContainer.innerHTML = '';
+    addedDestinations.forEach(dest => {
+      const li = document.createElement('li');
+      li.className = "flex justify-between items-center bg-white border border-gray-200 p-2 rounded-lg shadow-sm";
+      li.innerHTML = `
+                <span class="text-sm font-medium text-gray-800">${dest.name}</span>
+                <button type="button" onclick="removeDestination(${dest.id})" class="text-red-500 hover:text-red-700">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            `;
+      listContainer.appendChild(li);
+    });
+  }
+
+  function updateHiddenInput() {
+    // Format: Name,Lat,Lon (newline separated)
+    const val = addedDestinations.map(d => `${d.name},${d.lat},${d.lon}`).join('\n');
+    hiddenInput.value = val;
+  }
+</script>
+{% endblock %}
