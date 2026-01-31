@@ -15,6 +15,8 @@
     border-radius: 1rem !important;
     font-family: 'Outfit', sans-serif !important;
     padding: 1rem !important;
+    width: auto !important;
+    min-width: 320px !important;
   }
 
   .flatpickr-calendar.arrowTop:before,
@@ -48,6 +50,18 @@
     color: #374151 !important;
     font-weight: 500 !important;
     transition: all 0.2s;
+    max-width: none !important;
+    height: 38px !important;
+    line-height: 38px !important;
+  }
+
+  .flatpickr-days {
+    width: auto !important;
+  }
+
+  .dayContainer {
+    min-width: 280px !important;
+    max-width: 320px !important;
   }
 
   .flatpickr-day.flatpickr-disabled,
@@ -446,6 +460,9 @@
       minDate: "today",
       maxDate: new Date().fp_incr(365 * 2), // 2 years out
       disableMobile: "true", // Force custom UI
+      locale: {
+        firstDayOfWeek: 1 // Monday (0 = Sunday, 1 = Monday)
+      },
       onOpen: function (selectedDates, dateStr, instance) {
         // Check if any season is selected
         const anyChecked = Array.from(seasonCheckboxes).some(cb => cb.checked);
